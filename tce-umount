@@ -190,6 +190,15 @@ refresh_catalog() {
     awk "FNR < ${LINE_S} || FNR > ${LINE_E} + 1" $CACHE > $CATALOG
     rm -f $CACHE
   fi
+  # refresh database
+  :> $CACHE
+  for L in $(grep '^:' $CATALOG | cut -f 2); do
+    awk 'BEGIN {FS="\n";RS=""}
+      $1 == "'${L}'.tcz" {print;print ""}
+    ' $TCE_DB >> $CACHE
+  done
+  cat $CACHE > $TCE_DB
+  rm -f $CACHE
 }
 
 # main
@@ -230,10 +239,37 @@ sudo sync
 cat $CATALOG > $BACKUP
 
 # The database should have already been created by tce-cataload
-# If it can not be located, copy the system db instead
+environment() {
+  sudo mkdir -p $LOG_DIR
+  sudo chmod -R 775 $LOG_DIR
+  sudo chgrp -R staff $LOG_DIR
+}
+
+add_to_db() {
+  echo "${1}.tcz"
+  echo "${1}.tcz" | awk '
+  function dep_scan(name, depfile, line) {
+    if (name) {
+      sub(/KERNEL/, KERNELVER, name)
+      depfile = name ".dep"
+      print name
+      while (getline line < depfile > 0)
+        dep_scan(line)
+      close(depfile)
+    }
+  }
+  BEGIN {KERNELVER="'${KERNELVER}'"}
+  {dep_scan($1)}
+  ' | tail -n +2 | sort -u
+  printf '\n'
+}
+# Recreate one if it can not be located.
 if [ ! -f "$TCE_DB" ]; then
-  [ -f /etc/sysconfig/tcedir/optional/tce.db ] || tce-audit builddb
-  cp /etc/sysconfig/tcedir/optional/tce.db $LOG_DIR
+  (:>> $ERR_LOG) 2> /dev/null || environment
+  touch $TCE_DB
+  for L in $(grep '^:' $CATALOG | cut -f 2); do
+    add_to_db $L >> $TCE_DB
+  done
 fi
 
 # calculate unload order

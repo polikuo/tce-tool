@@ -119,7 +119,7 @@ done
 # calculate the order to load
 # skip first
 PACKAGES=$(echo $ARGS | cut -d ' ' -f 1)
-for ARG in $(echo $ARGS | cut -d ' ' -f 2-); do
+for ARG in $(echo $ARGS | grep ' ' | cut -d ' ' -f 2-); do
   FOUND=0
   for P in $PACKAGES; do
     awk 'BEGIN {FS="\n";RS="";R=0}

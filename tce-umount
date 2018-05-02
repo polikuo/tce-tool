@@ -187,7 +187,14 @@ refresh_catalog() {
     rm -f $CACHE $REFRESH_CACHE
   else
     mv $CATALOG $CACHE
-    awk "FNR < ${LINE_S} || FNR > ${LINE_E} + 1" $CACHE > $CATALOG
+    #awk "FNR < ${LINE_S} || FNR > ${LINE_E} + 1" $CACHE > $CATALOG
+    awk 'BEGIN {order=1}
+    FNR < '${LINE_S}' || FNR > '${LINE_E}' + 1 {
+      if (/^:/) {
+        split($0, out, /\t/)
+        print ":" order++ "\t" out[2]
+      } else print
+    }' $CACHE > $CATALOG
     rm -f $CACHE
   fi
   # refresh database

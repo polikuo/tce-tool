@@ -1,8 +1,5 @@
 #!/bin/sh
 # polikuo 2018
-. /etc/init.d/tc-functions
-useBusybox
-checknotroot
 
 LOG_DIR="/var/log/tce-tool"
 CATALOG="${LOG_DIR}/cata.log"
@@ -11,6 +8,27 @@ CACHE="${LOG_DIR}/cache.$$"
 REFRESH_CACHE="${LOG_DIR}/refresh_cache.$$"
 BACKUP="${CATALOG}.bk"
 TCE_DB="${LOG_DIR}/tce.db"
+
+alias awk='busybox awk'
+alias basename='busybox basename'
+alias cat='busybox cat'
+alias cp='busybox cp'
+alias cut='busybox cut'
+alias grep='busybox grep'
+alias id='busybox id'
+alias realpath='busybox realpath'
+alias rm='busybox rm'
+alias sed='busybox sed'
+alias sort='busybox sort'
+alias tail='busybox tail'
+alias tee='busybox tee'
+alias tr='busybox tr'
+alias uname='busybox uname'
+
+if [ $(id -u) -eq 0 ]; then
+  echo "Don't run this as root."
+  exit 1
+fi
 
 print_help() {
   echo "Usage: $(basename $0) [-f|-h|-s|--help] tcz_name1 tcz_name2 ...
@@ -123,7 +141,7 @@ tce_icons() {
 unload() {
   TCZ="$1"
   printf 'Unloading %s.tcz ...' $1
-  LIST=$(find /tmp/tcloop/${TCZ} -not -type d | sed 's:/tmp/tcloop/'${TCZ}'::g')
+  LIST=$(find /tmp/tcloop/${TCZ} -not -type d | cut -d '/' -f 5-)
   MOUNT_POINT=$(/bin/df | awk '/\/tmp\/tcloop\/'${TCZ}'$/ {print $1}')
   if [ -n "$MOUNT_POINT" ]; then
     sudo /bin/umount $MOUNT_POINT 2>> $ERR_LOG || {
@@ -131,7 +149,11 @@ unload() {
       printf ':%s failed\n' $TCZ >> $ERR_LOG
       printf 'Reloading back to previous status ...' | tee -a $ERR_LOG >&2
       TCE_RESUME=$(/usr/bin/tce-load -i $PKG 2>&1)
-      ([ "$?" = 0 ] && printf ' OK\n' || printf ' failed\n') | tee -a $ERR_LOG >&2
+      if [ "$?" = 0 ]; then
+        printf ' OK\n'
+      else
+        printf ' failed\n'
+      fi | tee -a $ERR_LOG >&2
       echo "$TCE_RESUME" >> $ERR_LOG
       exit 1
     }

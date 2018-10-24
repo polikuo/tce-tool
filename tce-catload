@@ -175,12 +175,17 @@ for PKG in $PACKAGES; do
       echo "$LOADED" >> $CATALOG
       ORDER=$((ORDER+1))
       LAST_SUCCESS=$(echo "$LOADED" | tail -1)
-      printf ':%d\t%s\n\n' $ORDER $LAST_SUCCESS
+      printf ':%d\t%s\n\n' $ORDER $LAST_SUCCESS | tee -a $CATALOG
     fi
     printf ':%s failed\n\n' $PKG >> $ERR_LOG
     if [  -n "$LAST_SUCCESS" ]; then
       echo "Please unmount ${LAST_SUCCESS} to restore to previous state" >&2
       echo "tce-umount ${LAST_SUCCESS}" >&2
+      # Delete the tce.db entry so we can unmount it
+      awk 'BEGIN {FS="\n";RS=""}
+        $1 != "'${PKG}'.tcz" {print;print ""}
+      ' $TCE_DB > $CACHE
+      cat $CACHE > $TCE_DB
     fi
     rm -f $CACHE
     exit 1
